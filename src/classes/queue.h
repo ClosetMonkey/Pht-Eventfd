@@ -2,7 +2,7 @@
   +----------------------------------------------------------------------+
   | PHP Version 7                                                        |
   +----------------------------------------------------------------------+
-  | Copyright (c) 1997-present The PHP Group                             |
+  | Copyright (c) 1997-2017 The PHP Group                                |
   +----------------------------------------------------------------------+
   | This source file is subject to version 3.01 of the PHP license,      |
   | that is bundled with this package in the file LICENSE, and is        |
@@ -28,6 +28,8 @@
 typedef struct _queue_obj_internal_t {
     pht_queue_t queue;
     pthread_mutex_t lock;
+    int evfd;
+    int auto_evfd;
     uint32_t refcount;
     zend_ulong vn;
 } queue_obj_internal_t;
