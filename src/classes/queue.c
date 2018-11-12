@@ -2,7 +2,7 @@
   +----------------------------------------------------------------------+
   | PHP Version 7                                                        |
   +----------------------------------------------------------------------+
-  | Copyright (c) 1997-present The PHP Group                             |
+  | Copyright (c) 1997-2017 The PHP Group                                |
   +----------------------------------------------------------------------+
   | This source file is subject to version 3.01 of the PHP license,      |
   | that is bundled with this package in the file LICENSE, and is        |
@@ -15,6 +15,7 @@
   | Author: Thomas Punt <tpunt@php.net>                                  |
   +----------------------------------------------------------------------+
 */
+#include <sys/eventfd.h>
 
 #include <Zend/zend_API.h>
 #include <Zend/zend_exceptions.h>
@@ -49,16 +50,13 @@ static zend_object *queue_ctor(zend_class_entry *entry)
 
     if (!PHT_ZG(skip_qoi_creation)) {
         queue_obj_internal_t *qoi = calloc(1, sizeof(queue_obj_internal_t));
-        pthread_mutexattr_t attr;
 
-        pthread_mutexattr_init(&attr);
-        pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_ERRORCHECK);
-        pthread_mutex_init(&qoi->lock, &attr);
-        pthread_mutexattr_destroy(&attr);
-
-        pht_queue_init(&qoi->queue, pht_entry_delete);
         qoi->refcount = 1;
         qoi->vn = 0;
+        pthread_mutex_init(&qoi->lock, NULL);
+        qoi->evfd = 0;
+        qoi->auto_evfd = 0;
+        pht_queue_init(&qoi->queue, pht_entry_delete);
 
         qo->qoi = qoi;
     }
@@ -129,6 +127,12 @@ PHP_METHOD(Queue, push)
 
     pht_queue_push(&qo->qoi->queue, entry);
     ++qo->qoi->vn;
+    
+    if(qo->qoi->auto_evfd)
+    {
+		uint64_t u = 1;
+		write(qo->qoi->evfd, &u, sizeof(uint64_t));
+	}    
 }
 
 ZEND_BEGIN_ARG_INFO_EX(Queue_pop_arginfo, 0, 0, 0)
@@ -141,6 +145,12 @@ PHP_METHOD(Queue, pop)
     if (zend_parse_parameters_none() != SUCCESS) {
         return;
     }
+
+    if(qo->qoi->auto_evfd)
+    {
+		uint64_t u;
+		read(qo->qoi->evfd, &u, sizeof(uint64_t));
+	}
 
     pht_entry_t *entry = pht_queue_pop(&qo->qoi->queue);
 
@@ -164,6 +174,12 @@ PHP_METHOD(Queue, front)
     if (zend_parse_parameters_none() != SUCCESS) {
         return;
     }
+    
+    if(qo->qoi->auto_evfd)
+    {
+		uint64_t u;
+		read(qo->qoi->evfd, &u, sizeof(uint64_t));
+	}
 
     pht_entry_t *entry = pht_queue_front(&qo->qoi->queue);
 
@@ -201,9 +217,7 @@ PHP_METHOD(Queue, lock)
         return;
     }
 
-    if (pthread_mutex_lock(&qo->qoi->lock)) {
-        zend_throw_error(NULL, "This mutex lock is already being held by this thread");
-    }
+    pthread_mutex_lock(&qo->qoi->lock);
 }
 
 ZEND_BEGIN_ARG_INFO_EX(Queue_unlock_arginfo, 0, 0, 0)
@@ -217,9 +231,55 @@ PHP_METHOD(Queue, unlock)
         return;
     }
 
-    if (pthread_mutex_unlock(&qo->qoi->lock)) {
-        zend_throw_error(NULL, "This mutex lock is either unheld, or is currently being held by another thread");
-    }
+    pthread_mutex_unlock(&qo->qoi->lock);
+}
+
+php_stream *php_pht_queue_create_efd(int evfd);
+
+PHP_METHOD(Queue, eventfd)
+{
+	zend_bool nonblocking = 0;
+	zend_bool nonblocking_null = 1;
+	zend_bool auto_evfd = 0;
+	zend_bool auto_evfd_null = 1;
+	zend_long options = 0;
+
+	ZEND_PARSE_PARAMETERS_START(2, 2)
+		Z_PARAM_BOOL_EX(nonblocking, nonblocking_null, 1, 0)
+		Z_PARAM_BOOL_EX(auto_evfd, auto_evfd_null, 1, 0)
+	ZEND_PARSE_PARAMETERS_END();
+	
+	queue_obj_t *qo = (queue_obj_t *)((char *)Z_OBJ(EX(This)) - Z_OBJ(EX(This))->handlers->offset);
+	
+	if(!qo->qoi->evfd)
+	{
+		if (!nonblocking_null) {
+			if (nonblocking) {
+				options = EFD_NONBLOCK;
+			} else {
+				options = 0;
+			}
+		}
+		if (!auto_evfd_null) {
+			if (auto_evfd) {
+				qo->qoi->auto_evfd = 1;
+			} else {
+				qo->qoi->auto_evfd = 0;
+			}
+		}		
+		
+		qo->qoi->evfd = eventfd(0, options);	
+	}
+	
+	php_stream *stream = php_pht_queue_create_efd(qo->qoi->evfd);
+	if(stream)
+	{
+		php_stream_to_zval(stream, return_value);
+	
+	}else
+	{
+		ZVAL_BOOL(return_value, 0);
+	}    
 }
 
 zend_function_entry Queue_methods[] = {
@@ -229,6 +289,7 @@ zend_function_entry Queue_methods[] = {
     PHP_ME(Queue, size, Queue_size_arginfo, ZEND_ACC_PUBLIC)
     PHP_ME(Queue, lock, Queue_lock_arginfo, ZEND_ACC_PUBLIC)
     PHP_ME(Queue, unlock, Queue_unlock_arginfo, ZEND_ACC_PUBLIC)
+    PHP_ME(Queue, eventfd, NULL, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 
@@ -266,3 +327,103 @@ void queue_ce_init(void)
     queue_handlers.write_property = qo_write_property;
     queue_handlers.get_properties = qo_get_properties;
 }
+
+// stream functions
+typedef int fd_t;
+
+typedef struct _php_pht_queue_stream_container {
+	int evfd;
+} php_pht_queue_stream_container;
+
+static
+size_t php_pht_queue_efd_read(php_stream *stream, char *buf, size_t count)
+{
+	php_pht_queue_stream_container *container = (php_pht_queue_stream_container *) stream->abstract;
+
+	ssize_t s;
+	uint64_t u;
+	int n;
+	
+	s = read(container->evfd, &u, sizeof(uint64_t));
+	n = snprintf (buf, 20, "%llu", u);
+
+	if (s != sizeof(uint64_t))
+		return -1;
+	else
+		return n;
+}
+
+static
+size_t php_pht_queue_efd_write(php_stream *stream, const char *buf, size_t count)
+{
+	php_pht_queue_stream_container *container = (php_pht_queue_stream_container *) stream->abstract;
+
+	ssize_t s;
+	uint64_t u = strtoull(buf, NULL, 0);
+	s = write(container->evfd, &u, sizeof(uint64_t));
+	
+	if (s != sizeof(uint64_t))
+		return 0;
+	else
+		return 1;
+}
+
+static
+int php_pht_queue_efd_close(php_stream *stream, int close_handle)
+{
+	php_pht_queue_stream_container *container = (php_pht_queue_stream_container *) stream->abstract;
+	efree (container);
+	return EOF;
+}
+
+static
+int php_pht_queue_efd_flush(php_stream *stream)
+{
+	return FAILURE;
+}
+
+static
+int php_pht_queue_efd_cast(php_stream *stream, int cast_as, void **ret)
+{
+	php_pht_queue_stream_container *container = (php_pht_queue_stream_container *) stream->abstract;
+
+	switch (cast_as)	{
+		case PHP_STREAM_AS_FD_FOR_SELECT:
+		case PHP_STREAM_AS_FD:
+		case PHP_STREAM_AS_SOCKETD:
+			if (ret) {
+				*(fd_t *)ret = container->evfd;
+			}
+			return SUCCESS;
+		default:
+			return FAILURE;
+	}
+}
+
+static
+php_stream_ops php_stream_pht_queue_efd_ops = {
+	php_pht_queue_efd_write, php_pht_queue_efd_read,
+	php_pht_queue_efd_close, php_pht_queue_efd_flush,
+	"PHT_Q_FD",
+	NULL,
+	php_pht_queue_efd_cast,
+	NULL,
+	NULL
+};
+
+php_stream *php_pht_queue_create_efd(int evfd)
+{
+	php_stream *stream;
+	php_pht_queue_stream_container *container;
+
+	container = (php_pht_queue_stream_container *) ecalloc(1, sizeof(php_pht_queue_stream_container));
+	stream = php_stream_alloc(&php_stream_pht_queue_efd_ops, container, NULL, "r+");
+
+	if (stream) {
+		container->evfd = evfd;
+		return stream;
+	}
+	
+	return NULL;
+}
+// end stream functions
