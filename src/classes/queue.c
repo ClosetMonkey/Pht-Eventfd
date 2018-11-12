@@ -128,11 +128,10 @@ PHP_METHOD(Queue, push)
     pht_queue_push(&qo->qoi->queue, entry);
     ++qo->qoi->vn;
     
-    if(qo->qoi->auto_evfd)
-    {
-		uint64_t u = 1;
-		write(qo->qoi->evfd, &u, sizeof(uint64_t));
-	}    
+    if (qo->qoi->auto_evfd) {
+        uint64_t u = 1;
+        write(qo->qoi->evfd, &u, sizeof(uint64_t));
+    }    
 }
 
 ZEND_BEGIN_ARG_INFO_EX(Queue_pop_arginfo, 0, 0, 0)
@@ -146,11 +145,10 @@ PHP_METHOD(Queue, pop)
         return;
     }
 
-    if(qo->qoi->auto_evfd)
-    {
-		uint64_t u;
-		read(qo->qoi->evfd, &u, sizeof(uint64_t));
-	}
+    if (qo->qoi->auto_evfd) {
+        uint64_t u;
+        read(qo->qoi->evfd, &u, sizeof(uint64_t));
+    }
 
     pht_entry_t *entry = pht_queue_pop(&qo->qoi->queue);
 
@@ -175,11 +173,10 @@ PHP_METHOD(Queue, front)
         return;
     }
     
-    if(qo->qoi->auto_evfd)
-    {
-		uint64_t u;
-		read(qo->qoi->evfd, &u, sizeof(uint64_t));
-	}
+    if (qo->qoi->auto_evfd) {
+        uint64_t u;
+        read(qo->qoi->evfd, &u, sizeof(uint64_t));
+    }
 
     pht_entry_t *entry = pht_queue_front(&qo->qoi->queue);
 
@@ -251,35 +248,31 @@ PHP_METHOD(Queue, eventfd)
 	
 	queue_obj_t *qo = (queue_obj_t *)((char *)Z_OBJ(EX(This)) - Z_OBJ(EX(This))->handlers->offset);
 	
-	if(!qo->qoi->evfd)
-	{
-		if (!nonblocking_null) {
-			if (nonblocking) {
-				options = EFD_NONBLOCK;
-			} else {
-				options = 0;
-			}
-		}
-		if (!auto_evfd_null) {
-			if (auto_evfd) {
-				qo->qoi->auto_evfd = 1;
-			} else {
-				qo->qoi->auto_evfd = 0;
-			}
-		}		
-		
-		qo->qoi->evfd = eventfd(0, options);	
-	}
-	
-	php_stream *stream = php_pht_queue_create_efd(qo->qoi->evfd);
-	if(stream)
-	{
-		php_stream_to_zval(stream, return_value);
-	
-	}else
-	{
-		ZVAL_BOOL(return_value, 0);
-	}    
+    if (!qo->qoi->evfd) {
+        if (!nonblocking_null) {
+            if (nonblocking) {
+                options = EFD_NONBLOCK;
+            } else {
+                options = 0;
+            }
+        }
+        if (!auto_evfd_null) {
+            if (auto_evfd) {
+                qo->qoi->auto_evfd = 1;
+            } else {
+                qo->qoi->auto_evfd = 0;
+            }
+        }
+        
+        qo->qoi->evfd = eventfd(0, options);	
+    }
+
+    php_stream *stream = php_pht_queue_create_efd(qo->qoi->evfd);
+    if (stream) {
+        php_stream_to_zval(stream, return_value);
+    } else {
+        ZVAL_BOOL(return_value, 0);
+    }    
 }
 
 zend_function_entry Queue_methods[] = {
