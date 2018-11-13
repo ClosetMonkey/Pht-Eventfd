@@ -19,6 +19,32 @@ Can only be installed on OSs that support eventfd.
 
 Modifications will be found in the eventfd branch.
 
+Basic gist:
+```php
+$thread = new Thread();
+$queu = new Queue();
+
+$thread->addClassTask(Task::class, $queu);
+$thread->start();
+
+$loop = React\EventLoop\Factory::create();
+
+$readq = new React\Stream\ReadableResourceStream($queu->eventfd(true, false), $loop);
+
+$readq->on('data', function ($data) use ($websocket, $queu) {
+	if ($queu->size() != 0) {
+		$ret = $queu->pop();
+		$websocket->send($ret);
+	}
+});
+
+$websocket->on('message', function($ev) use ($queu) {
+	$queu->push($ev);
+});
+
+$loop->run();
+```
+
 # The Pht Threading Extension
 
 This extension exposes a new approach to threading in PHP.
