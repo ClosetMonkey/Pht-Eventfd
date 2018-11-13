@@ -40,7 +40,6 @@ class Task implements pht\Runnable
     public function pop() {
         if ($this->queu1->size() != 0) {
             $ev = $this->queu1->pop();
-            fread($this->evfd, 1);
             return $ev;			
         }	
     }
