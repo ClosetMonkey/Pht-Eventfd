@@ -1,4 +1,4 @@
-# Adding eventfd interfaces
+# Adding [eventfd](https://linux.die.net/man/2/eventfd) interfaces
 
 This fork of tpunts [pht](https://github.com/tpunt/pht) extension is an experiment to research pht's capabilities in providing async background tasks when coupled with eventloop services.
 
@@ -13,7 +13,9 @@ if `bool nonblocking` is set to true the underlying eventfd stream socket will b
 if `bool auto_evfd` is set true the queue's pop and first methods will automatically trigger the underlying event socket with a read(), and the queue's push method will automatically trigger the event socket with a write(). Setting `auto_evfd` to true is not intended for synchronization of the queue (although this is possible) but instead for automatically triggering an eventloop on the main thread.
 if `bool auto_evfd` is set false none of the queues base methods will be effected but standard stream functions can still be used on the stream returned from `$queue->eventfd()` (such as fread/fwrite/etc). Note that doing so will only read/write from the underlying event socket not the queue itself and is only useful for manually triggering an event on the main loop for the associated queue.
 
-If `$queue->eventfd()` is not called the queue will work as normal in both function and performance. If 
+If `$queue->eventfd()` is not called the queue will work as normal in both function and performance.
+
+Can only be installed on OSs that support eventfd.
 
 # The Pht Threading Extension
 
