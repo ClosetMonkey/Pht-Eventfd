@@ -81,18 +81,6 @@ class PhtWSInterface implements MessageComponentInterface {
         $this->evfd = $queu2->eventfd(true, false);
     }
     
-    public function pop() {
-        if ($this->queu1->size() != 0) {
-            $ev = $this->queu1->pop();
-            return $ev;			
-        }	
-    }
-	
-    public function push($ev) {
-        $this->queu2->push($ev);
-        fwrite($this->evfd, "1");
-    }	
-    
     public function onOpen (ConnectionInterface $conn) {
         $this->clients->attach($conn);
     }
