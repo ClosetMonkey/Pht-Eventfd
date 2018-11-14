@@ -111,13 +111,14 @@ use Ratchet\Http\HttpServer;
 use Ratchet\WebSocket\WsServer;
 use PhtEvfdQ\PhtWSInterface;
 
+$websockClients = new \SplObjectStorage;
+
 $thread = new pht\Thread();
 
 $queu1 = new pht\Queue();
 $queu2 = new pht\Queue();
 
 $loop   = React\EventLoop\Factory::create();
-$websockClients = new \SplObjectStorage;
 $readq = new React\Stream\ReadableResourceStream($queu2->eventfd(true, false), $loop);
 
 $readq->on('data', function ($data/*not used*/) use ($websockClients, $queu1, $queu2) {
