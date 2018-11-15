@@ -32,8 +32,8 @@ $readq->on('data', function ($data/*not used*/) use ($websockClients, $queu_ret)
     while ($queu_ret->size()) {
         $queu_ret->lock();
           $ev = $queu_ret->pop();
-       	$queu_ret->unlock();
-       	$ev = json_decode($ev);
+        $queu_ret->unlock();
+        $ev = json_decode($ev);
         foreach ($websockClients as $client) {
             if ($ev->cid == $client->resourceId) {
                 $client->send($ev->msg);
