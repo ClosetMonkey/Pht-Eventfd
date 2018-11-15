@@ -17,9 +17,9 @@ Can only be installed on OSs that support eventfd (tested on Ubuntu 16.04).
 
 Modifications will be found in the eventfd branch.
 
-**Basic React/Ratchet Websocket example**
+**Basic React/Ratchet Websocket with Pht threads**
 
-The following server was able to handle 5,000,000 messages from 200 concurrent websocket clients (20 chrome tabs, each with 10 connections). Experienced no memory growth within PHP process over duration of test. Test was done on an Intel Core 2 Duo (2 cores @ 3.00GHz) with 4 gigs of ram. Was able to handle over 10,000 messages per second on this minimal system (roughly 50 messages per second each client)
+The following server was able to handle 5,000,000 messages from 200 concurrent websocket clients (20 chrome tabs, each with 10 connections). It experienced no memory growth within PHP process over duration of test. Test was done on an Intel Core 2 Duo (2 cores @ 3.00GHz) with 4 gigs of ram. Was able to handle over 10,000 messages per second on this minimal system (roughly 50 messages per second each client)
 
 
 PhtWSThread.php:
