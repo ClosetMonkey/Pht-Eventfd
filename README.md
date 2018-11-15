@@ -4,7 +4,7 @@ Only pht\Queue has been modified at this point.
 
 **To use**
 
-The eventfd stream interface is activated by calling the `$queue->eventfd(bool nonblocking, bool auto_evfd)` method. It requires two bool arguments and will return the stream resource of an eventfd socket added to the internal queue object.
+The eventfd stream interface is activated by calling the `$queue->eventfd(bool nonblocking, bool auto_evfd)` method. It requires two bool arguments and will return the stream resource of an eventfd socket linked to the internal queue object.
 
 if `bool nonblocking` is set to true the underlying eventfd stream socket will be set to non blocking, otherwise the resulting stream will be a blocking eventfd socket
 
