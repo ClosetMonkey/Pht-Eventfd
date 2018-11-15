@@ -92,7 +92,6 @@ class PhtWSInterface implements MessageComponentInterface {
         $this->queu_arr[$msg->channel]->lock();
           $this->queu_arr[$msg->channel]->push($ev);
         $this->queu_arr[$msg->channel]->unlock();
-        printf("Total Clients: %d, Total Messages Sent: %d\r", count($this->clients), $this->total_resp++);
     }
 
     public function onClose(ConnectionInterface $conn) {
