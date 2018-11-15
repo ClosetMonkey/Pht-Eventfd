@@ -163,7 +163,7 @@ $webServer = new Ratchet\Server\IoServer(
 
 $loop->run();
 ```
-wstest.html (from https://gist.github.com/miebach/3293565)
+wstest.html (modified from https://gist.github.com/miebach/3293565)
 ```html
 <!DOCTYPE html>
 <!-- http://www.websocket.org/echo.html -->
@@ -174,54 +174,48 @@ wstest.html (from https://gist.github.com/miebach/3293565)
   var wsUri = "ws://localhost:9000";
   var clients = [];
   var client_count = 10;
-  var msg_sent = 0;
-  var msg_recv = 0;
   var out = null;
   
   function init() {
-    out = document.getElementById("output");
-    for(var i = 0; i < client_count; i++) {
-		testWebSocket(i);
-	}
+      out = document.getElementById("output");
+      for(var i = 0; i < client_count; i++) {
+          testWebSocket(i);
+      }
   }
 
   function testWebSocket(i) {
-    clients[i] = new WebSocket(wsUri);
-    clients[i].onopen = function(evt) { onOpen(evt, i) };
-    clients[i].onclose = function(evt) { onClose(evt) }; 
-    clients[i].onmessage = function(evt) { onMessage(evt, i) };
-    clients[i].onerror = function(evt) { onError(evt) }; 
+      clients[i] = new WebSocket(wsUri);
+      clients[i].onopen = function(evt) { onOpen(evt, i) };
+      clients[i].onclose = function(evt) { onClose(evt) }; 
+      clients[i].onmessage = function(evt) { onMessage(evt, i) };
+      clients[i].onerror = function(evt) { onError(evt) }; 
   }
 
   function onOpen(evt, i) {
-    doSend(i, "WebSocket rocks");
+      doSend(i, "WebSocket rocks");
   }  
 
   function onClose(evt) {
   } 
 
   function onMessage(evt, i) { 
-    doSend(i, "WebSocket rocks");
+      doSend(i, "WebSocket rocks");
    } 
 
   function onError(evt) { 
-    writeToScreen('<span style="color: red;">ERROR:</span> ' + evt.data);
   } 
 
   function doSend(i, message) {
-	  var channel = (Math.floor((Math.random() * 5) + 1) - 1);
-	  message += " on channel " + channel
+      var channel = (Math.floor((Math.random() * 5) + 1) - 1);
+      message += " on channel " + channel
       clients[i].send(JSON.stringify({data: message, channel: channel}));
   } 
-
 
   window.addEventListener("load", init, false);
 
 </script>
 
 <h2>WebSocket Test</h2>
-
 <div id="output"></div>  
-
 </html>
 ```
