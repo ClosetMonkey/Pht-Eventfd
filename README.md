@@ -1,4 +1,4 @@
-This fork of tpunts [pht](https://github.com/tpunt/pht) extension is an experiment to research pht's capabilities in providing async background tasks when coupled with eventloop services.
+This fork of tpunts [pht](https://github.com/tpunt/pht) extension is an experiment to research pht's capabilities in providing async background tasks when coupled with event driven PHP services.
 
 Only pht\Queue has been modified at this point. 
 
