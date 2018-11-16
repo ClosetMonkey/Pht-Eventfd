@@ -31,7 +31,7 @@ class Task implements Runnable
 				
                 $conn->send($ev);
 
-			}, function(\Exception $e) use ($loop) {
+        }, function(\Exception $e) use ($loop) {
                 echo "Could not connect: {$e->getMessage()}\n";
                 $loop->stop();
             });
