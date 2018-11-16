@@ -19,10 +19,9 @@ Modifications will be found in the eventfd branch.
 
 **Basic React/Ratchet Websocket with Pht threads**
 
-The following server was able to handle 5,000,000 messages from 200 concurrent websocket clients (20 chrome tabs, each with 10 connections). It experienced no memory growth within PHP process over duration of test. Test was done on an Intel Core 2 Duo (2 cores @ 3.00GHz) with 4 gigs of ram. Was able to handle over 10,000 messages per second on this minimal system (roughly 50 messages per second each client)
+Thse tests where mainly performed to study benifits of Pht threads when used with a React PHP service as well as the effects of such a combination on PHP's garbage collection. The following server was able to handle 5,000,000 messages from 200 concurrent websocket clients. The test was done by opening 20 chrome tabs with each tab maintaining 10 websocket clients. It experienced no memory growth within PHP process over duration of test and was stopped once satisfied that PHP was able to manage memmory without error (no memory leaks or other pitfalls within PHP's GC). Test was done on an Intel Core 2 Duo (2 cores @ 3.00GHz) with 4 gigs of ram. Was able to handle over 10,000 messages per second on this minimal system (roughly 50 messages per second each client) althogh the test was not performed to gauage performance. 
 
-
-PhtWSThread.php:
+[examples/PhtWSThread.php](https://github.com/ClosetMonkey/Pht-with-Eventfd/blob/eventfd/examples/PhtWSThread.php):
 ```php
 <?php
 
@@ -66,7 +65,7 @@ class PhtWSThread implements pht\Runnable
 ```
 
 
-PhtWSInterface.php
+[examples/PhtWSInterface.php](https://github.com/ClosetMonkey/Pht-with-Eventfd/blob/eventfd/examples/PhtWSInterface.php)
 ```php
 <?php
 
@@ -109,7 +108,7 @@ class PhtWSInterface implements MessageComponentInterface {
 ```
 
 
-PhtWebsocket.php
+[examples/pht_websocket.php](https://github.com/ClosetMonkey/Pht-with-Eventfd/blob/eventfd/examples/pht_websocket.php)
 ```php
 <?php
 
@@ -171,7 +170,7 @@ $loop->run();
 ```
 
 
-wstest.html (modified from https://gist.github.com/miebach/3293565)
+[examples/wstest.html](https://github.com/ClosetMonkey/Pht-with-Eventfd/blob/eventfd/examples/wstest.html) (modified from https://gist.github.com/miebach/3293565)
 ```html
 <!DOCTYPE html>
 <!-- http://www.websocket.org/echo.html -->
@@ -226,4 +225,64 @@ wstest.html (modified from https://gist.github.com/miebach/3293565)
 <h2>WebSocket Test</h2>
 <div id="output"></div>  
 </html>
+```
+
+The following script is being developed to fully benchmark Pht with Ratchet once ready.
+
+[examples/async_client.php](https://github.com/ClosetMonkey/Pht-with-Eventfd/blob/eventfd/examples/async_client.php)
+```php
+<?php
+
+use pht\{Thread, Runnable};
+
+class Task implements Runnable
+{
+    public function run() {
+        require __DIR__ . '/vendor/autoload.php';
+
+        $loop = React\EventLoop\Factory::create();
+        $connector = new Ratchet\Client\Connector($loop);
+
+        for($i=0; $i < 200; $i++)
+        {
+            $connector('ws://localhost:9000')->then(function(Ratchet\Client\WebSocket $conn) use ($i) {
+                $chanId = (rand(1, 5) - 1);
+                $msg = "Websocket test (client ".$i.")\n";
+                $ev = json_encode((object)["data" => $msg.' '.$chanId, "channel" => $chanId]);
+
+                $conn->on('message', function(\Ratchet\RFC6455\Messaging\MessageInterface $msg) use ($conn, $ev, $i) {
+                    $chanId = (rand(1, 5) - 1);
+                    $msg = "Websocket test (client ".$i.")\n";
+                    $ev = json_encode((object)["data" => $msg.' '.$chanId, "channel" => $chanId]);
+
+                    $conn->send($ev);
+                });
+
+                $conn->on('close', function($code = null, $reason = null) {
+                    echo "Connection closed ({$code} - {$reason})\n";
+                });
+				
+                $conn->send($ev);
+
+			}, function(\Exception $e) use ($loop) {
+                echo "Could not connect: {$e->getMessage()}\n";
+                $loop->stop();
+            });
+        }
+	
+        $loop->run();
+
+    }
+}
+
+$threads = [];
+
+for ($i = 0; $i < 5; $i++) {
+    $threads[$i] = new Thread();
+    $threads[$i]->addClassTask(Task::class);
+    $threads[$i]->start();
+    sleep(20);
+}
+
+$threads[0]->join();
 ```
