@@ -2,21 +2,6 @@ This fork of tpunts [pht](https://github.com/tpunt/pht) extension is an experime
 
 Only pht\Queue has been modified at this point. 
 
-**To use**
-
-The eventfd stream interface is activated by calling the `$queue->eventfd(bool nonblocking, bool auto_evfd)` method. It requires two bool arguments and will return the stream resource of an eventfd socket linked to the internal queue object.
-
-if `bool nonblocking` is set to true the underlying eventfd stream socket will be set to non blocking, otherwise the resulting stream will be a blocking eventfd socket
-
-if `bool auto_evfd` is set true the queue's pop and first methods will automatically trigger the underlying event socket with a read(), and the queue's push method will automatically trigger the event socket with a write(). Setting `auto_evfd` to true is not intended for synchronization of the queue (although this is possible, the queues lock/unlock methods should still be used) - instead the intention is to automatically triggering an eventloop on the main thread.
-if `bool auto_evfd` is set false none of the queues base methods will be effected but standard stream functions can still be used on the stream returned from `$queue->eventfd()` (such as fread/fwrite/etc). Note that doing so will only read/write from the underlying event socket not the queue itself and is only useful for manually triggering an event on the main loop for the associated queue.
-
-If `$queue->eventfd()` is not called the queue will work as normal in both function and performance.
-
-Can only be installed on OSs that support eventfd (tested on Ubuntu 16.04).
-
-Modifications will be found in the eventfd branch.
-
 **Basic React/Ratchet Websocket with Pht threads**
 These tests were mainly performed to study benifits of Pht threads when used with a React PHP service as well as the effects of such a combination on PHP's garbage collection. The following server was able to handle 5,000,000 messages from 200 concurrent websocket clients. The test was done by opening 20 chrome tabs with each tab maintaining 10 websocket clients. It experienced no memory growth within PHP process over duration of test and was stopped once satisfied that PHP was able to manage memory without error (no memory leaks or other pitfalls within PHP's GC). Test was done on an Intel Core 2 Duo (2 cores @ 3.00GHz) with 4 gigs of ram. Was able to handle over 10,000 messages per second on this minimal system (roughly 50 messages per second each client) although the test was not performed to gauge performance. 
 
